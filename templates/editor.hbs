@@ -1,0 +1,38 @@
+<form class="ee-editor" autocomplete="off">
+  <fieldset>
+    <legend>Identity</legend>
+    <div class="form-group"><label>Name</label><input type="text" name="name" value="{{e.name}}" placeholder="Kaldrax"></div>
+    <div class="form-group"><label>Subtitle</label><input type="text" name="subtitle" value="{{e.subtitle}}" placeholder="The Burning Crown"></div>
+    <div class="form-group"><label>Boss artwork</label><file-picker type="image" name="image" value="{{e.image}}"></file-picker></div>
+    <div class="form-group"><label>Narration</label><textarea name="narration" rows="3" placeholder="One line per beat. Lines appear one after another.">{{e.narration}}</textarea></div>
+  </fieldset>
+  <fieldset>
+    <legend>Look &amp; Audio</legend>
+    <div class="form-group"><label>Atmosphere</label><select name="atmosphere">{{selectOptions atmospheres selected=e.atmosphere}}</select></div>
+    <div class="form-group"><label>Accent color</label><input type="color" name="color" value="{{e.color}}"></div>
+    <div class="form-group"><label>Min. intro length (s)</label><input type="number" name="duration" min="3" max="60" value="{{e.duration}}"></div>
+    <div class="form-group"><label>Intro stinger</label><file-picker type="audio" name="stinger" value="{{e.stinger}}"></file-picker></div>
+    <div class="form-group"><label>Combat music</label><file-picker type="audio" name="music" value="{{e.music}}"></file-picker></div>
+    <div class="form-group"><label>Victory music</label><file-picker type="audio" name="victoryMusic" value="{{e.victoryMusic}}"></file-picker></div>
+  </fieldset>
+  <fieldset>
+    <legend>Combat</legend>
+    <div class="form-group"><label>Boss actor</label><select name="bossActorId">{{selectOptions actors selected=e.bossActorId blank=""}}</select></div>
+    <div class="form-group"><label>Scene (optional)</label><select name="sceneId">{{selectOptions scenes selected=e.sceneId blank=""}}</select></div>
+    <div class="form-group"><label>Bar name</label><input type="text" name="barName" value="{{e.barName}}" placeholder="defaults to encounter name"></div>
+    <div class="form-group"><label>Start combat after intro</label><input type="checkbox" name="startCombat" {{checked e.startCombat}}></div>
+    <div class="form-group"><label>Show boss bar</label><input type="checkbox" name="showBar" {{checked e.showBar}}></div>
+  </fieldset>
+  <fieldset>
+    <legend>Phases</legend>
+    <p class="hint">One per line: <code>HP% | Line shown | Sound path (optional)</code> e.g. <code>65 | The wings tear loose from the stone. | sounds/roar.mp3</code>. Each fires once when the boss drops to or below that percentage; the screen shakes.</p>
+    <textarea name="phases" rows="4">{{e.phases}}</textarea>
+  </fieldset>
+  <fieldset>
+    <legend>Defeat &amp; Victory</legend>
+    <div class="form-group"><label>Defeat effect</label><select name="defeat">{{selectOptions defeats selected=e.defeat}}</select></div>
+    <div class="form-group"><label>Victory title</label><input type="text" name="victoryTitle" value="{{e.victoryTitle}}" placeholder="Victory"></div>
+    <div class="form-group"><label>Epilogue</label><textarea name="victoryText" rows="3">{{e.victoryText}}</textarea></div>
+  </fieldset>
+  <footer class="form-footer"><button type="submit"><i class="fa-solid fa-save"></i> Save</button></footer>
+</form>

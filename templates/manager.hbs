@@ -1,0 +1,26 @@
+<section class="ee-manager">
+  <div class="ee-toolbar">
+    <button type="button" data-action="create"><i class="fa-solid fa-plus"></i> New Encounter</button>
+    <button type="button" data-action="stop"><i class="fa-solid fa-stop"></i> Stop Active</button>
+  </div>
+  {{#if encounters.length}}
+  <ul class="ee-list">
+    {{#each encounters}}
+    <li data-id="{{id}}" class="{{#if active}}active{{/if}}">
+      {{#if image}}<img src="{{image}}" alt="">{{else}}<span class="ee-noimg"><i class="fa-solid fa-dragon"></i></span>{{/if}}
+      <div class="ee-info"><strong>{{name}}</strong><small>{{subtitle}}</small></div>
+      <div class="ee-btns">
+        <button type="button" data-action="intro" data-id="{{id}}" title="Intro only (preview for all)"><i class="fa-solid fa-film"></i></button>
+        <button type="button" data-action="start" data-id="{{id}}" title="Start encounter (intro, then combat and boss bar)"><i class="fa-solid fa-play"></i></button>
+        <button type="button" data-action="edit" data-id="{{id}}" title="Edit"><i class="fa-solid fa-pen"></i></button>
+        <button type="button" data-action="duplicate" data-id="{{id}}" title="Duplicate"><i class="fa-solid fa-copy"></i></button>
+        <button type="button" data-action="delete" data-id="{{id}}" title="Delete"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </li>
+    {{/each}}
+  </ul>
+  {{else}}
+  <p class="ee-empty">No encounters yet. Create one.</p>
+  {{/if}}
+</section>
+
