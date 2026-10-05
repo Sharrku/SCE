@@ -31,6 +31,14 @@
     <div class="form-group"><label>Show boss bar</label><input type="checkbox" name="showBar" {{checked e.showBar}}></div>
   </fieldset>
   <fieldset>
+    <legend>Theatre Scene</legend>
+    <div class="form-group"><label>Create a scene</label><input type="checkbox" name="theatreScene" {{checked e.theatreScene}}></div>
+    <p class="hint">Builds a scene from the artwork (or the video below) and switches everyone to it after the intro. Players can roll and open their sheets as usual. The scene is created automatically and kept up to date.</p>
+    <div class="form-group"><label>Scene background</label><file-picker type="imagevideo" name="sceneBackground" value="{{e.sceneBackground}}"></file-picker></div>
+    <p class="hint">Optional: an animated .webm or .mp4. Leave empty to use the boss artwork.</p>
+    <div class="form-group"><label>Scene weather</label><select name="sceneWeather">{{selectOptions weathers selected=e.sceneWeather}}</select></div>
+  </fieldset>
+  <fieldset>
     <legend>Phases</legend>
     <p class="hint">One per line: <code>HP% | Line shown | Sound path (optional)</code> e.g. <code>65 | The wings tear loose from the stone. | sounds/roar.mp3</code>. Each fires once when the boss drops to or below that percentage; the screen shakes.</p>
     <textarea name="phases" rows="4">{{e.phases}}</textarea>

@@ -2,7 +2,7 @@
     "id":  "sce",
     "title":  "SCE - Sharrku Cinematic Encounter",
     "description":  "Cinematic boss intros, phase transitions, a shared boss health bar, defeat effects and victory screens.",
-    "version":  "0.2.0",
+    "version":  "0.3.0",
     "compatibility":  {
                           "minimum":  "13",
                           "verified":  "14"
@@ -28,5 +28,5 @@
     "socket":  true,
     "url":  "https://github.com/Sharrku/SCE",
     "manifest":  "https://github.com/Sharrku/SCE/releases/latest/download/module.json",
-    "download":  "https://github.com/Sharrku/SCE/releases/download/v0.2.0/module.zip"
+    "download":  "https://github.com/Sharrku/SCE/releases/download/v0.3.0/module.zip"
 }

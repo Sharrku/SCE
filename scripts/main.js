@@ -14,7 +14,7 @@ const DEFEATS = {
 const blank = () => ({
   id: foundry.utils.randomID(), name: "New Boss", subtitle: "", image: "", narration: "",
   atmosphere: "embers", color: "#c01818", duration: 14, stinger: "", revealSound: "", crossStart: -0.8, crossLen: 2.4, revealHold: 6, afterReveal: "auto", music: "", victoryMusic: "",
-  bossActorId: "", sceneId: "", barName: "", startCombat: true, showBar: true,
+  bossActorId: "", sceneId: "", theatreScene: false, sceneBackground: "", sceneWeather: "", barName: "", startCombat: true, showBar: true,
   phases: "", defeat: "ashes", victoryTitle: "Victory", victoryText: ""
 });
 
@@ -155,7 +155,7 @@ const UI = {
   },
 
   /* ---------- intro ---------- */
-  async intro(enc) {
+  async intro(enc, preview = false) {
     this.clearOverlay(".ee-intro");
     const el = document.createElement("div");
     el.className = "ee-intro";
@@ -184,6 +184,8 @@ const UI = {
     const end = () => {
       if (!el.isConnected || el.classList.contains("out")) return;
       stopFx?.(); el.classList.add("out");
+      // Theatre scene: switch under the fading overlay so nobody sees the old map
+      if (game.user.isGM && enc.theatreScene && !preview) activateTheatre(enc);
       stingerP.then(h => this.fadeOut(h, 1200));
       this.fadeOut(this.revealHandle, 1200); this.revealHandle = null;
       setTimeout(() => { el.remove(); done(); }, 1200);
@@ -328,7 +330,7 @@ const emit = (action, data = {}) => {
 
 async function handle({ action, data }) {
   switch (action) {
-    case "intro": return await UI.intro(data.enc);
+    case "intro": return await UI.intro(data.enc, !!data.preview);
     case "introEnd": UI.skip?.(); break;
     case "music": UI.setMusic(data.src); break;
     case "bar": UI.bar(data); break;
@@ -344,12 +346,14 @@ const Active = {
   set: s => game.settings.set(MID, "active", s)
 };
 
-async function runIntro(enc) { emit("intro", { enc }); }
+async function runIntro(enc) { emit("intro", { enc, preview: true }); }
 
 async function startEncounter(id) {
   const enc = getEnc(id);
   if (!enc) return;
-  if (enc.sceneId && canvas.scene?.id !== enc.sceneId) {
+  if (enc.theatreScene) {
+    if (!await ensureTheatreScene(enc)) return;
+  } else if (enc.sceneId && canvas.scene?.id !== enc.sceneId) {
     await game.scenes.get(enc.sceneId)?.view();
   }
   await Active.set({ id: enc.id, fired: [], over: false });
@@ -359,6 +363,38 @@ async function startEncounter(id) {
   if (enc.music) emit("music", { src: enc.music });
   if (enc.startCombat) await setupCombat(enc);
   if (enc.showBar && enc.bossActorId) pushBar(enc);
+}
+
+/** Creates (or refreshes) the scene built from the encounter artwork or video background. */
+async function ensureTheatreScene(enc) {
+  const src = enc.sceneBackground || enc.image;
+  if (!src) { ui.notifications.warn("SCE: Set artwork or a scene background first."); return null; }
+  const weather = CONFIG.weatherEffects?.[enc.sceneWeather] ? enc.sceneWeather : "";
+  let scene = game.scenes.find(s => s.getFlag(MID, "encounterId") === enc.id);
+  if (scene) {
+    if (scene.background?.src !== src || (scene.weather ?? "") !== weather) {
+      await scene.update({ "background.src": src, weather });
+    }
+    return scene;
+  }
+  let width = 1920, height = 1080;
+  try {
+    const tex = await foundry.canvas.loadTexture(src);
+    if (tex?.width && tex?.height) { width = tex.width; height = tex.height; }
+  } catch (e) { console.warn(`${MID} | could not read background size`, e); }
+  const data = {
+    name: `SCE: ${enc.name}`, width, height, padding: 0, navigation: false,
+    background: { src }, grid: { type: 0 }, tokenVision: false,
+    fog: { exploration: false }, environment: { globalLight: { enabled: true } },
+    flags: { [MID]: { encounterId: enc.id } }
+  };
+  try { return await Scene.create({ ...data, weather }); }
+  catch (e) { console.warn(`${MID} | scene with weather failed, retrying without`, e); return Scene.create(data); }
+}
+
+async function activateTheatre(enc) {
+  const scene = game.scenes.find(s => s.getFlag(MID, "encounterId") === enc.id);
+  if (scene) await scene.activate();
 }
 
 async function setupCombat(enc) {
@@ -436,7 +472,8 @@ class EncounterEditor extends HandlebarsApplicationMixin(ApplicationV2) {
     const actors = Object.fromEntries(game.actors.filter(a => a.type !== "character").map(a => [a.id, a.name]));
     const scenes = Object.fromEntries(game.scenes.map(s => [s.id, s.name]));
     const afterRevealOptions = { auto: "Continue automatically", ask: "Ask me (continue or stay)", hold: "Hold the screen (theatre of the mind)" };
-    return { e: this.enc, atmospheres: ATMOSPHERES, defeats: DEFEATS, afterRevealOptions, actors, scenes };
+    const weathers = { "": "None", ...Object.fromEntries(Object.entries(CONFIG.weatherEffects ?? {}).map(([k, v]) => [k, game.i18n.localize(v.label)])) };
+    return { e: this.enc, atmospheres: ATMOSPHERES, defeats: DEFEATS, afterRevealOptions, weathers, actors, scenes };
   }
 
   _onRender() {
@@ -444,7 +481,7 @@ class EncounterEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       ev.preventDefault();
       const fd = new foundry.applications.ux.FormDataExtended(ev.currentTarget).object;
       const enc = foundry.utils.mergeObject(this.enc, fd, { inplace: false });
-      enc.startCombat = !!fd.startCombat; enc.showBar = !!fd.showBar;
+      enc.startCombat = !!fd.startCombat; enc.theatreScene = !!fd.theatreScene; enc.showBar = !!fd.showBar;
       enc.duration = Number(fd.duration) || 14;
       enc.revealHold = Number(fd.revealHold) || 0;
       enc.crossStart = Number(fd.crossStart) || 0;
