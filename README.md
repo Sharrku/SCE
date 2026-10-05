@@ -1,4 +1,4 @@
-# SCE
+# SCE - Sharrku Cinematic Encounter
 
 Cinematic boss encounters for Foundry VTT (v13/v14, any system; HP path defaults to D&D 5e).
 
@@ -15,7 +15,7 @@ Cinematic boss encounters for Foundry VTT (v13/v14, any system; HP path defaults
 In Foundry: *Add-on Modules -> Install Module -> Manifest URL*:
 
 ```
-https://github.com/Sharrku/Sharrku-cinematic-encounter/releases/latest/download/module.json
+https://github.com/Sharrku/SCE/releases/latest/download/module.json
 ```
 
 ## Included sounds
