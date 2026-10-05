@@ -32,7 +32,7 @@ try {
 } finally { $zip.Dispose() }
 
 # Modulquellen fuer das Repo spiegeln (ohne zip)
-foreach ($d in "scripts","styles","templates","lang","sounds") {
+foreach ($d in "scripts","styles","templates","lang","sounds","examples") {
   $t = Join-Path $out $d
   if (Test-Path $t) { Remove-Item $t -Recurse -Force }
   Copy-Item (Join-Path $src $d) $t -Recurse

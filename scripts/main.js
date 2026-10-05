@@ -13,7 +13,7 @@ const DEFEATS = {
 
 const blank = () => ({
   id: foundry.utils.randomID(), name: "New Boss", subtitle: "", image: "", narration: "",
-  atmosphere: "embers", color: "#c01818", duration: 14, stinger: "", music: "", victoryMusic: "",
+  atmosphere: "embers", color: "#c01818", duration: 14, stinger: "", revealSound: "", crossStart: -0.8, crossLen: 2.4, revealHold: 6, afterReveal: "auto", music: "", victoryMusic: "",
   bossActorId: "", sceneId: "", barName: "", startCombat: true, showBar: true,
   phases: "", defeat: "ashes", victoryTitle: "Victory", victoryText: ""
 });
@@ -24,8 +24,11 @@ function introTimes(enc) {
   const slot = 3600, narrStart = 2200;
   const art = narrStart + n * slot + (n ? 400 : 0);
   const title = art + 2200;
-  const end = Math.max(title + 4500, (enc.duration || 0) * 1000);
-  return { slot, narrStart, art, title, end };
+  const hold = Math.max(0, Number(enc.revealHold ?? 6)) * 1000;
+  const askAt = title + hold;
+  // "auto" ends by itself; "ask" and "hold" wait for the GM
+  const end = (enc.afterReveal || "auto") === "auto" ? Math.max(askAt, (enc.duration || 0) * 1000) : null;
+  return { slot, narrStart, art, title, askAt, end };
 }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -50,7 +53,7 @@ const getEnc = id => getAll().find(e => e.id === id);
 /* Client-side presentation                                           */
 /* ------------------------------------------------------------------ */
 const UI = {
-  root: null, loops: [], musicHandle: null, timers: [], skip: null,
+  root: null, loops: [], musicHandle: null, revealHandle: null, timers: [], skip: null, release: null, choice: "combat",
 
   ensureRoot() {
     if (!this.root?.isConnected) {
@@ -68,6 +71,13 @@ const UI = {
     try {
       return await foundry.audio.AudioHelper.play({ src, volume, loop, autoplay: true }, false);
     } catch (e) { console.warn(`${MID} | audio failed`, src, e); return null; }
+  },
+
+  fadeTo(h, vol, ms) { try { h?.fade?.(vol, { duration: ms }); } catch (e) { /* ignore */ } },
+  fadeOut(h, ms) {
+    if (!h) return;
+    this.fadeTo(h, 0, ms);
+    setTimeout(() => { try { h.stop(); } catch (e) { /* ignore */ } }, ms + 100);
   },
 
   async setMusic(src) {
@@ -163,29 +173,75 @@ const UI = {
       </div>`;
     this.ensureRoot().appendChild(el);
     const stopFx = this.atmosphere(el.querySelector("canvas"), enc.atmosphere, enc.color);
-    this.sound(enc.stinger, { volume: 0.9 });
+    const mode = enc.afterReveal || "auto";
+    const stingerP = this.sound(enc.stinger, { volume: 0.9 });
+    this.revealHandle = null;
+    this.choice = "combat";
 
     let done;
     const finished = new Promise(r => done = r);
+    this.release = done;
     const end = () => {
       if (!el.isConnected || el.classList.contains("out")) return;
       stopFx?.(); el.classList.add("out");
+      stingerP.then(h => this.fadeOut(h, 1200));
+      this.fadeOut(this.revealHandle, 1200); this.revealHandle = null;
       setTimeout(() => { el.remove(); done(); }, 1200);
     };
     this.skip = end;
-    if (game.user.isGM) el.addEventListener("click", () => end());
+    const sendEnd = choice => {
+      this.choice = choice;
+      game.socket.emit(SOCKET, { action: "introEnd", data: {} });
+      end();
+    };
+    if (game.user.isGM) el.addEventListener("click", ev => {
+      if (!ev.target.closest(".ee-gm") && mode === "auto") sendEnd("combat");
+    });
+
+    const gmPanel = html => {
+      if (!game.user.isGM) return null;
+      el.querySelector(".ee-gm")?.remove();
+      const p = document.createElement("div");
+      p.className = "ee-gm"; p.innerHTML = html;
+      el.appendChild(p);
+      return p;
+    };
+    const showClose = () => {
+      const p = gmPanel(`<span>Screen is held (theatre of the mind)</span><button type="button" data-a="close">Close screen</button>`);
+      p?.querySelector("[data-a=close]").addEventListener("click", () => sendEnd("none"));
+    };
+    const showAsk = () => {
+      const p = gmPanel(`<span>What now?</span>
+        <button type="button" data-a="go">Continue to combat</button>
+        <button type="button" data-a="stay">Stay on this screen</button>`);
+      p?.querySelector("[data-a=go]").addEventListener("click", () => sendEnd("combat"));
+      p?.querySelector("[data-a=stay]").addEventListener("click", showClose);
+    };
 
     requestAnimationFrame(() => el.classList.add("in"));
-    // 1) scene dims, 2) narration lines, 3) artwork, 4) title
+    // 1) scene dims, 2) narration lines, 3) artwork (stinger crossfades into the reveal sound), 4) title
     const t = introTimes(enc);
     const box = el.querySelector(".ee-narr");
     lines(enc.narration).forEach((txt, i) => this.later(() => {
       box.innerHTML = `<span style="animation-duration:${t.slot}ms">${esc(txt)}</span>`;
     }, t.narrStart + i * t.slot));
+    if (enc.revealSound) {
+      // Crossfade: starts crossStart seconds relative to the artwork (negative = before), lasts crossLen seconds
+      const len = Math.max(0.2, Number(enc.crossLen ?? 2.4)) * 1000;
+      const at = Math.max(0, t.art + Number(enc.crossStart ?? -0.8) * 1000);
+      this.later(async () => {
+        stingerP.then(h => this.fadeOut(h, len));
+        this.revealHandle = await this.sound(enc.revealSound, { volume: 0, loop: false });
+        this.fadeTo(this.revealHandle, 0.9, len);
+      }, at);
+    }
     this.later(() => el.classList.add("reveal"), t.art);
     this.later(() => el.classList.add("title"), t.title);
-    this.later(end, t.end);
+    if (mode === "hold") this.later(showClose, t.title);
+    else if (mode === "ask") this.later(showAsk, t.askAt);
+    else this.later(() => sendEnd("combat"), t.end);
     await finished;
+    return this.choice;
   },
 
   /* ---------- boss bar ---------- */
@@ -255,6 +311,9 @@ const UI = {
   stop() {
     this.timers.forEach(clearTimeout); this.timers = [];
     this.stopMusic();
+    try { this.revealHandle?.stop(); } catch (e) { /* ignore */ }
+    this.revealHandle = null;
+    this.choice = "none"; this.release?.(); this.release = null;
     this.ensureRoot().innerHTML = "";
   }
 };
@@ -264,12 +323,13 @@ const UI = {
 /* ------------------------------------------------------------------ */
 const emit = (action, data = {}) => {
   game.socket.emit(SOCKET, { action, data });
-  handle({ action, data });
+  return handle({ action, data });
 };
 
 async function handle({ action, data }) {
   switch (action) {
-    case "intro": await UI.intro(data.enc); if (data.music) UI.setMusic(data.music); break;
+    case "intro": return await UI.intro(data.enc);
+    case "introEnd": UI.skip?.(); break;
     case "music": UI.setMusic(data.src); break;
     case "bar": UI.bar(data); break;
     case "phase": UI.phase(data); break;
@@ -293,10 +353,9 @@ async function startEncounter(id) {
     await game.scenes.get(enc.sceneId)?.view();
   }
   await Active.set({ id: enc.id, fired: [], over: false });
-  emit("intro", { enc });
-  // GM-only continuation, waits for intro duration (+fade) or manual skip
-  await sleep(introTimes(enc).end + 1300);
-  if (Active.state?.id !== enc.id) return;
+  // Resolves when the intro ends (timer, or the GM decides); "none" = GM kept the screen, no combat
+  const choice = await emit("intro", { enc });
+  if (Active.state?.id !== enc.id || choice === "none") return;
   if (enc.music) emit("music", { src: enc.music });
   if (enc.startCombat) await setupCombat(enc);
   if (enc.showBar && enc.bossActorId) pushBar(enc);
@@ -376,7 +435,8 @@ class EncounterEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext() {
     const actors = Object.fromEntries(game.actors.filter(a => a.type !== "character").map(a => [a.id, a.name]));
     const scenes = Object.fromEntries(game.scenes.map(s => [s.id, s.name]));
-    return { e: this.enc, atmospheres: ATMOSPHERES, defeats: DEFEATS, actors, scenes };
+    const afterRevealOptions = { auto: "Continue automatically", ask: "Ask me (continue or stay)", hold: "Hold the screen (theatre of the mind)" };
+    return { e: this.enc, atmospheres: ATMOSPHERES, defeats: DEFEATS, afterRevealOptions, actors, scenes };
   }
 
   _onRender() {
@@ -386,6 +446,9 @@ class EncounterEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       const enc = foundry.utils.mergeObject(this.enc, fd, { inplace: false });
       enc.startCombat = !!fd.startCombat; enc.showBar = !!fd.showBar;
       enc.duration = Number(fd.duration) || 14;
+      enc.revealHold = Number(fd.revealHold) || 0;
+      enc.crossStart = Number(fd.crossStart) || 0;
+      enc.crossLen = Number(fd.crossLen) || 2.4;
       const all = getAll(); const i = all.findIndex(x => x.id === enc.id);
       if (i >= 0) all[i] = enc; else all.push(enc);
       await saveAll(all);
@@ -433,6 +496,7 @@ class Manager extends HandlebarsApplicationMixin(ApplicationV2) {
 /* ------------------------------------------------------------------ */
 Hooks.once("init", () => {
   game.settings.register(MID, "encounters", { scope: "world", config: false, type: Array, default: [] });
+  game.settings.register(MID, "examplesImported", { scope: "world", config: false, type: Boolean, default: false });
   game.settings.register(MID, "active", { scope: "world", config: false, type: Object, default: null });
   game.settings.register(MID, "hpPath", {
     name: "HP data path", hint: "Path on the actor to the HP object with value and max (D&D 5e default).",
@@ -449,6 +513,7 @@ Hooks.once("init", () => {
 
 Hooks.once("ready", () => {
   game.socket.on(SOCKET, handle);
+  if (game.user.isGM && !game.settings.get(MID, "examplesImported")) importExample();
   const api = {
     open: () => new Manager().render(true),
     start: startEncounter, intro: id => runIntro(getEnc(id)), stop: () => { Active.set(null); emit("stop"); },
@@ -484,3 +549,14 @@ Hooks.on("deleteCombat", async () => {
   const st = Active.state;
   if (st?.id && !st.over) { await Active.set(null); emit("bar", { hide: true }); UI.stopMusic(); emit("stop"); }
 });
+
+/** Adds the bundled example encounter once per world (set your own artwork and boss actor in the editor). */
+async function importExample() {
+  try {
+    const ex = await fetch(`modules/${MID}/examples/example-encounter.json`).then(r => r.json());
+    ex.id = foundry.utils.randomID();
+    ex.name = `${ex.name} (Example)`;
+    await saveAll([...getAll(), ex]);
+    await game.settings.set(MID, "examplesImported", true);
+  } catch (e) { console.warn(`${MID} | could not import example`, e); }
+}

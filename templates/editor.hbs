@@ -12,6 +12,13 @@
     <div class="form-group"><label>Accent color</label><input type="color" name="color" value="{{e.color}}"></div>
     <div class="form-group"><label>Min. intro length (s)</label><input type="number" name="duration" min="3" max="60" value="{{e.duration}}"></div>
     <div class="form-group"><label>Intro stinger</label><file-picker type="audio" name="stinger" value="{{e.stinger}}"></file-picker></div>
+    <div class="form-group"><label>Reveal sound</label><file-picker type="audio" name="revealSound" value="{{e.revealSound}}"></file-picker></div>
+    <div class="form-group"><label>Crossfade start (s)</label><range-picker name="crossStart" min="-12" max="12" step="0.1" value="{{e.crossStart}}"></range-picker></div>
+    <div class="form-group"><label>Crossfade length (s)</label><range-picker name="crossLen" min="0.2" max="10" step="0.1" value="{{e.crossLen}}"></range-picker></div>
+    <p class="hint">Crossfade start is relative to the moment the artwork appears: negative starts earlier, positive starts later. The reveal sound plays once and does not loop. During the crossfade the stinger fades out while the reveal sound fades in.</p>
+    <div class="form-group"><label>Reveal screen stays (s)</label><input type="number" name="revealHold" min="0" max="120" value="{{e.revealHold}}"></div>
+    <div class="form-group"><label>After the reveal</label><select name="afterReveal">{{selectOptions afterRevealOptions selected=e.afterReveal}}</select></div>
+    <p class="hint">Continue: ends automatically and starts combat. Ask me: shows buttons to continue or stay (theatre of the mind). Hold: stays until you close it, no combat.</p>
     <div class="form-group"><label>Combat music</label><file-picker type="audio" name="music" value="{{e.music}}"></file-picker></div>
     <div class="form-group"><label>Victory music</label><file-picker type="audio" name="victoryMusic" value="{{e.victoryMusic}}"></file-picker></div>
   </fieldset>
