@@ -13,7 +13,7 @@ const DEFEATS = {
 
 const blank = () => ({
   id: foundry.utils.randomID(), name: "New Boss", subtitle: "", image: "", narration: "",
-  atmosphere: "embers", color: "#c01818", duration: 14, stinger: "", revealSound: "", crossStart: -0.8, crossLen: 2.4, revealHold: 6, afterReveal: "auto", music: "", victoryMusic: "",
+  atmosphere: "embers", color: "#c01818", duration: 14, stinger: "", stingerFadeIn: 0, revealSound: "", crossStart: -0.8, crossLen: 2.4, revealHold: 6, afterReveal: "auto", music: "", victoryMusic: "",
   bossActorId: "", sceneId: "", theatreScene: false, sceneBackground: "", sceneWeather: "", barName: "", startCombat: true, showBar: true,
   phases: "", defeat: "ashes", victoryTitle: "Victory", victoryText: ""
 });
@@ -174,7 +174,9 @@ const UI = {
     this.ensureRoot().appendChild(el);
     const stopFx = this.atmosphere(el.querySelector("canvas"), enc.atmosphere, enc.color);
     const mode = enc.afterReveal || "auto";
-    const stingerP = this.sound(enc.stinger, { volume: 0.9 });
+    const fadeIn = Math.max(0, Number(enc.stingerFadeIn || 0)) * 1000;
+    const stingerP = this.sound(enc.stinger, { volume: fadeIn ? 0 : 0.9 });
+    if (fadeIn) stingerP.then(h => this.fadeTo(h, 0.9, fadeIn));
     this.revealHandle = null;
     this.choice = "combat";
 
@@ -371,10 +373,17 @@ async function ensureTheatreScene(enc) {
   if (!src) { ui.notifications.warn("SCE: Set artwork or a scene background first."); return null; }
   const weather = CONFIG.weatherEffects?.[enc.sceneWeather] ? enc.sceneWeather : "";
   let scene = game.scenes.find(s => s.getFlag(MID, "encounterId") === enc.id);
+  // v14 moved the background (src and color) from the Scene to its Level
+  const levels = !!foundry.documents?.BaseScene?._LEVELS_PROPERTY_MAP;
   if (scene) {
-    if (scene.background?.src !== src || (scene.weather ?? "") !== weather) {
-      await scene.update({ "background.src": src, weather });
+    const level = levels ? scene.firstLevel : null;
+    const cur = levels ? level?.background?.src : scene.background?.src;
+    if (levels && level && (cur !== src || level.background?.color?.toString().toLowerCase() !== "#000000")) {
+      await scene.updateEmbeddedDocuments("Level", [{ _id: level.id, "background.src": src, "background.color": "#000000" }]);
+    } else if (!levels && cur !== src) {
+      await scene.update({ "background.src": src, backgroundColor: "#000000" });
     }
+    if ((scene.weather ?? "") !== weather) await scene.update({ weather });
     return scene;
   }
   let width = 1920, height = 1080;
@@ -384,7 +393,9 @@ async function ensureTheatreScene(enc) {
   } catch (e) { console.warn(`${MID} | could not read background size`, e); }
   const data = {
     name: `SCE: ${enc.name}`, width, height, padding: 0, navigation: false,
-    background: { src }, grid: { type: 0 }, tokenVision: false,
+    ...(levels ? { levels: [{ name: "Main", background: { src, color: "#000000" } }] }
+               : { background: { src }, backgroundColor: "#000000" }),
+    grid: { type: 0 }, tokenVision: false,
     fog: { exploration: false }, environment: { globalLight: { enabled: true } },
     flags: { [MID]: { encounterId: enc.id } }
   };
@@ -485,6 +496,7 @@ class EncounterEditor extends HandlebarsApplicationMixin(ApplicationV2) {
       enc.duration = Number(fd.duration) || 14;
       enc.revealHold = Number(fd.revealHold) || 0;
       enc.crossStart = Number(fd.crossStart) || 0;
+      enc.stingerFadeIn = Number(fd.stingerFadeIn) || 0;
       enc.crossLen = Number(fd.crossLen) || 2.4;
       const all = getAll(); const i = all.findIndex(x => x.id === enc.id);
       if (i >= 0) all[i] = enc; else all.push(enc);
