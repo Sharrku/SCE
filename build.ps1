@@ -1,11 +1,11 @@
 # Baut module.zip + module.json fuer ein GitHub-Release.
-# Aufruf:  .\build.ps1 -GitHubUser DEINNAME [-Repo epic-encounters]
+# Aufruf:  .\build.ps1 -GitHubUser DEINNAME [-Repo sce]
 param(
   [Parameter(Mandatory)] [string] $GitHubUser,
-  [string] $Repo = "epic-encounters"
+  [string] $Repo = "SCE"
 )
 $ErrorActionPreference = "Stop"
-$src  = Join-Path $env:LOCALAPPDATA "FoundryVTT\Data\modules\epic-encounters"
+$src  = Join-Path $env:LOCALAPPDATA "FoundryVTT\Data\modules\sce"
 $out  = $PSScriptRoot
 $man  = Get-Content (Join-Path $src "module.json") -Raw | ConvertFrom-Json
 $ver  = $man.version

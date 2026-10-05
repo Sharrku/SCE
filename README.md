@@ -1,4 +1,4 @@
-# Epic Encounters
+# SCE
 
 Cinematic boss encounters for Foundry VTT (v13/v14, any system; HP path defaults to D&D 5e).
 

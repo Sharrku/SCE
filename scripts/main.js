@@ -1,4 +1,4 @@
-const MID = "epic-encounters";
+const MID = "sce";
 const SOCKET = `module.${MID}`;
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -399,7 +399,7 @@ class Manager extends HandlebarsApplicationMixin(ApplicationV2) {
   static instance = null;
   static DEFAULT_OPTIONS = {
     id: "ee-manager", classes: ["ee-app"],
-    window: { title: "Epic Encounters", icon: "fa-solid fa-dragon", resizable: true },
+    window: { title: "SCE", icon: "fa-solid fa-dragon", resizable: true },
     position: { width: 480, height: 520 },
     actions: {
       create() { new EncounterEditor(blank()).render(true); },
@@ -440,7 +440,7 @@ Hooks.once("init", () => {
   });
   // Keybindings must be registered during "init"
   game.keybindings.register(MID, "open", {
-    name: "Open Epic Encounters",
+    name: "Open SCE",
     editable: [{ key: "KeyE", modifiers: ["Alt"] }],
     restricted: true,
     onDown: () => { game.modules.get(MID).api?.open(); return true; }
@@ -468,7 +468,7 @@ Hooks.on("getSceneControlButtons", controls => {
   const tokens = controls.tokens ?? controls.token;
   if (!tokens) return;
   tokens.tools[`${MID}-open`] = {
-    name: `${MID}-open`, title: "Epic Encounters", icon: "fa-solid fa-dragon",
+    name: `${MID}-open`, title: "SCE", icon: "fa-solid fa-dragon",
     order: 99, button: true, onChange: () => game.modules.get(MID).api.open()
   };
 });
