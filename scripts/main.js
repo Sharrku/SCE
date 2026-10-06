@@ -469,35 +469,134 @@ async function onHpChange(actor) {
 /* ------------------------------------------------------------------ */
 /* Applications                                                       */
 /* ------------------------------------------------------------------ */
+const ATMOS_ICONS = { embers: "fa-fire", smoke: "fa-cloud", storm: "fa-bolt", frost: "fa-snowflake", radiance: "fa-sun", abyss: "fa-circle-notch", none: "fa-ban" };
+const DEFEAT_ICONS = { ashes: "fa-fire", implode: "fa-compress", shatter: "fa-burst", banish: "fa-wand-sparkles", petrify: "fa-mountain", nova: "fa-sun", eclipse: "fa-moon" };
+const AFTER = [
+  { value: "auto", label: "Continue automatically", icon: "fa-forward", short: "Auto", desc: "The reveal fades out by itself and the encounter starts." },
+  { value: "ask", label: "Let me decide", icon: "fa-hand-pointer", short: "Ask", desc: "Buttons appear for you: continue to combat, or stay on the screen." },
+  { value: "hold", label: "Hold the screen", icon: "fa-pause", short: "Hold", desc: "Theatre of the mind. Stays until you close it, no combat." }
+];
+
 class EncounterEditor extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
-    id: "ee-editor", tag: "div", classes: ["ee-app"],
+    id: "sce-editor", tag: "div", classes: ["sce-app"],
     window: { title: "Edit Encounter", icon: "fa-solid fa-dragon", resizable: true },
-    position: { width: 560, height: 720 }
+    position: { width: 660, height: 780 }
   };
-  static PARTS = { form: { template: `modules/${MID}/templates/editor.hbs`, } };
+  static PARTS = { form: { template: `modules/${MID}/templates/editor.hbs` } };
+
+  tab = "story";
 
   constructor(enc, options = {}) { super(options); this.enc = enc; }
 
   async _prepareContext() {
+    const e = this.enc;
     const actors = Object.fromEntries(game.actors.filter(a => a.type !== "character").map(a => [a.id, a.name]));
     const scenes = Object.fromEntries(game.scenes.map(s => [s.id, s.name]));
-    const afterRevealOptions = { auto: "Continue automatically", ask: "Ask me (continue or stay)", hold: "Hold the screen (theatre of the mind)" };
     const weathers = { "": "None", ...Object.fromEntries(Object.entries(CONFIG.weatherEffects ?? {}).map(([k, v]) => [k, game.i18n.localize(v.label)])) };
-    return { e: this.enc, atmospheres: ATMOSPHERES, defeats: DEFEATS, afterRevealOptions, weathers, actors, scenes };
+    const list = (map, icons, cur) => Object.entries(map).map(([value, label]) => ({ value, label, icon: icons[value], checked: value === cur }));
+    return {
+      e, actors, scenes, weathers,
+      atmosphereList: list(ATMOSPHERES, ATMOS_ICONS, e.atmosphere),
+      defeatList: list(DEFEATS, DEFEAT_ICONS, e.defeat),
+      afterList: AFTER.map(a => ({ ...a, checked: a.value === (e.afterReveal || "auto") }))
+    };
+  }
+
+  /** Reads the whole form into an encounter object. */
+  _collect(form) {
+    const fd = new foundry.applications.ux.FormDataExtended(form).object;
+    const enc = foundry.utils.mergeObject(this.enc, fd, { inplace: false });
+    enc.startCombat = !!fd.startCombat; enc.theatreScene = !!fd.theatreScene; enc.showBar = !!fd.showBar;
+    enc.duration = Number(fd.duration) || 14;
+    enc.revealHold = Number(fd.revealHold) || 0;
+    enc.crossStart = Number(fd.crossStart) || 0;
+    enc.crossLen = Number(fd.crossLen) || 2.4;
+    enc.stingerFadeIn = Number(fd.stingerFadeIn) || 0;
+    enc.phases = [...form.querySelectorAll(".sce-phase")].map(r => {
+      const pct = Number(r.querySelector(".p-pct").value);
+      if (!(pct > 0 && pct < 100)) return null;
+      const line = r.querySelector(".p-line").value.replace(/\|/g, "/").trim();
+      const sound = (r.querySelector("file-picker")?.value || "").trim();
+      return `${pct} | ${line} | ${sound}`;
+    }).filter(Boolean).join("\n");
+    return enc;
+  }
+
+  _timeline(form) {
+    const el = form.querySelector(".sce-timeline");
+    if (!el) return;
+    const enc = this._collect(form);
+    const t = introTimes(enc);
+    const total = t.end ?? (t.askAt + 3000);
+    const p = ms => Math.max(0, Math.min(100, ms / total * 100));
+    const xs = Math.max(0, t.art + enc.crossStart * 1000);
+    const xe = xs + Math.max(200, enc.crossLen * 1000);
+    const fade = enc.stingerFadeIn * 1000;
+    const seg = (a, b, cls, label) => `<span class="seg ${cls}" style="left:${p(a)}%;width:${Math.max(0, p(b) - p(a))}%">${label}</span>`;
+    el.innerHTML = `
+      <div class="tl-track">
+        ${seg(0, t.narrStart, "dim", "Dim")}${seg(t.narrStart, t.art, "narr", "Narration")}
+        ${seg(t.art, t.title, "art", "Artwork")}${seg(t.title, total, "title", "Title")}
+      </div>
+      <div class="tl-row${enc.stinger ? "" : " off"}"><span class="lab">Stinger</span>
+        <div class="bar stinger" style="left:0;width:${p(xe)}%"><i style="width:${Math.min(100, fade / Math.max(1, xe) * 100)}%"></i></div></div>
+      <div class="tl-row${enc.revealSound ? "" : " off"}"><span class="lab">Reveal</span>
+        <div class="bar reveal" style="left:${p(xs)}%;width:${100 - p(xs)}%"></div></div>
+      <div class="tl-axis"><span>0 s</span><span>${(total / 1000).toFixed(0)} s</span></div>`;
   }
 
   _onRender() {
-    this.element.querySelector("form").addEventListener("submit", async ev => {
+    const root = this.element, form = root.querySelector("form");
+
+    // Tabs
+    const show = tab => {
+      this.tab = tab;
+      root.querySelectorAll(".sce-tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+      root.querySelectorAll(".sce-pane").forEach(p => p.classList.toggle("active", p.dataset.tab === tab));
+    };
+    root.querySelectorAll(".sce-tabs button").forEach(b => b.addEventListener("click", () => show(b.dataset.tab)));
+    show(this.tab);
+
+    // Phases
+    const list = form.querySelector(".sce-phases");
+    const addRow = (p = { pct: 50, line: "", sound: "" }) => {
+      const row = document.createElement("div");
+      row.className = "sce-phase";
+      row.innerHTML = `
+        <div class="pct"><input type="number" class="p-pct" min="1" max="99" value="${p.pct}"><span>%</span></div>
+        <div class="body">
+          <input type="text" class="p-line" placeholder="Line shown on screen" value="${esc(p.line)}">
+          <file-picker type="audio" value="${esc(p.sound)}"></file-picker>
+        </div>
+        <button type="button" class="sce-rm" title="Remove phase"><i class="fa-solid fa-xmark"></i></button>`;
+      list.appendChild(row);
+    };
+    parsePhases(this.enc.phases).forEach(addRow);
+    form.querySelector(".sce-add-phase").addEventListener("click", () => addRow());
+    list.addEventListener("click", ev => ev.target.closest(".sce-rm")?.closest(".sce-phase").remove());
+
+    // Live bits: accent color, hero artwork, sound timeline
+    const refresh = ev => {
+      const t = ev?.target;
+      if (t?.name === "color") form.style.setProperty("--accent", t.value);
+      if (t?.name === "image") {
+        const art = form.querySelector(".sce-hero-art");
+        art.style.backgroundImage = t.value ? `url('${t.value}')` : "";
+        art.innerHTML = t.value ? "" : '<i class="fa-solid fa-dragon"></i>';
+      }
+      this._timeline(form);
+    };
+    form.addEventListener("input", refresh);
+    form.addEventListener("change", refresh);
+    this._timeline(form);
+
+    // Footer
+    form.querySelector("[data-act=cancel]").addEventListener("click", () => this.close());
+    form.querySelector("[data-act=preview]").addEventListener("click", () => UI.intro(this._collect(form), true));
+    form.addEventListener("submit", async ev => {
       ev.preventDefault();
-      const fd = new foundry.applications.ux.FormDataExtended(ev.currentTarget).object;
-      const enc = foundry.utils.mergeObject(this.enc, fd, { inplace: false });
-      enc.startCombat = !!fd.startCombat; enc.theatreScene = !!fd.theatreScene; enc.showBar = !!fd.showBar;
-      enc.duration = Number(fd.duration) || 14;
-      enc.revealHold = Number(fd.revealHold) || 0;
-      enc.crossStart = Number(fd.crossStart) || 0;
-      enc.stingerFadeIn = Number(fd.stingerFadeIn) || 0;
-      enc.crossLen = Number(fd.crossLen) || 2.4;
+      const enc = this._collect(form);
       const all = getAll(); const i = all.findIndex(x => x.id === enc.id);
       if (i >= 0) all[i] = enc; else all.push(enc);
       await saveAll(all);
@@ -510,14 +609,14 @@ class EncounterEditor extends HandlebarsApplicationMixin(ApplicationV2) {
 class Manager extends HandlebarsApplicationMixin(ApplicationV2) {
   static instance = null;
   static DEFAULT_OPTIONS = {
-    id: "ee-manager", classes: ["ee-app"],
-    window: { title: "SCE", icon: "fa-solid fa-dragon", resizable: true },
-    position: { width: 480, height: 520 },
+    id: "sce-manager", classes: ["sce-app"],
+    window: { title: "SCE - Encounters", icon: "fa-solid fa-dragon", resizable: true },
+    position: { width: 780, height: 620 },
     actions: {
       create() { new EncounterEditor(blank()).render(true); },
-      stop() { Active.set(null); emit("stop"); },
+      stop() { Active.set(null); emit("stop"); this.render(); },
       intro(ev, t) { runIntro(getEnc(t.dataset.id)); },
-      start(ev, t) { startEncounter(t.dataset.id); },
+      async start(ev, t) { const p = startEncounter(t.dataset.id); this.render(); await p; this.render(); },
       edit(ev, t) { new EncounterEditor(foundry.utils.deepClone(getEnc(t.dataset.id))).render(true); },
       async duplicate(ev, t) {
         const c = foundry.utils.deepClone(getEnc(t.dataset.id));
@@ -536,7 +635,16 @@ class Manager extends HandlebarsApplicationMixin(ApplicationV2) {
 
   async _prepareContext() {
     const act = Active.state?.id;
-    return { encounters: getAll().map(e => ({ ...e, active: e.id === act })) };
+    const encounters = getAll().map(e => {
+      const after = AFTER.find(a => a.value === (e.afterReveal || "auto")) ?? AFTER[0];
+      const chips = [{ icon: after.icon, label: after.short }];
+      if (e.theatreScene) chips.push({ icon: "fa-image", label: "Scene" });
+      if (e.showBar && e.bossActorId) chips.push({ icon: "fa-heart", label: "Boss bar" });
+      const n = parsePhases(e.phases).length;
+      if (n) chips.push({ icon: "fa-heart-crack", label: `${n} phase${n > 1 ? "s" : ""}` });
+      return { ...e, chips, active: e.id === act };
+    });
+    return { encounters, running: encounters.find(e => e.active)?.name ?? "" };
   }
 }
 

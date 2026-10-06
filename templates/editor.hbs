@@ -1,54 +1,158 @@
-<form class="ee-editor" autocomplete="off">
-  <fieldset>
-    <legend>Identity</legend>
-    <div class="form-group"><label>Name</label><input type="text" name="name" value="{{e.name}}" placeholder="Kaldrax"></div>
-    <div class="form-group"><label>Subtitle</label><input type="text" name="subtitle" value="{{e.subtitle}}" placeholder="The Burning Crown"></div>
-    <div class="form-group"><label>Boss artwork</label><file-picker type="image" name="image" value="{{e.image}}"></file-picker></div>
-    <div class="form-group"><label>Narration</label><textarea name="narration" rows="3" placeholder="One line per beat. Lines appear one after another.">{{e.narration}}</textarea></div>
-  </fieldset>
-  <fieldset>
-    <legend>Look &amp; Audio</legend>
-    <div class="form-group"><label>Atmosphere</label><select name="atmosphere">{{selectOptions atmospheres selected=e.atmosphere}}</select></div>
-    <div class="form-group"><label>Accent color</label><input type="color" name="color" value="{{e.color}}"></div>
-    <div class="form-group"><label>Min. intro length (s)</label><input type="number" name="duration" min="3" max="60" value="{{e.duration}}"></div>
-    <div class="form-group"><label>Intro stinger</label><file-picker type="audio" name="stinger" value="{{e.stinger}}"></file-picker></div>
-    <div class="form-group"><label>Stinger fade-in (s)</label><range-picker name="stingerFadeIn" min="0" max="10" step="0.1" value="{{e.stingerFadeIn}}"></range-picker></div>
-    <div class="form-group"><label>Reveal sound</label><file-picker type="audio" name="revealSound" value="{{e.revealSound}}"></file-picker></div>
-    <div class="form-group"><label>Crossfade start (s)</label><range-picker name="crossStart" min="-12" max="12" step="0.1" value="{{e.crossStart}}"></range-picker></div>
-    <div class="form-group"><label>Crossfade length (s)</label><range-picker name="crossLen" min="0.2" max="10" step="0.1" value="{{e.crossLen}}"></range-picker></div>
-    <p class="hint">Crossfade start is relative to the moment the artwork appears: negative starts earlier, positive starts later. The reveal sound plays once and does not loop. During the crossfade the stinger fades out while the reveal sound fades in.</p>
-    <div class="form-group"><label>Reveal screen stays (s)</label><input type="number" name="revealHold" min="0" max="120" value="{{e.revealHold}}"></div>
-    <div class="form-group"><label>After the reveal</label><select name="afterReveal">{{selectOptions afterRevealOptions selected=e.afterReveal}}</select></div>
-    <p class="hint">Continue: ends automatically and starts combat. Ask me: shows buttons to continue or stay (theatre of the mind). Hold: stays until you close it, no combat.</p>
-    <div class="form-group"><label>Combat music</label><file-picker type="audio" name="music" value="{{e.music}}"></file-picker></div>
-    <div class="form-group"><label>Victory music</label><file-picker type="audio" name="victoryMusic" value="{{e.victoryMusic}}"></file-picker></div>
-  </fieldset>
-  <fieldset>
-    <legend>Combat</legend>
-    <div class="form-group"><label>Boss actor</label><select name="bossActorId">{{selectOptions actors selected=e.bossActorId blank=""}}</select></div>
-    <div class="form-group"><label>Scene (optional)</label><select name="sceneId">{{selectOptions scenes selected=e.sceneId blank=""}}</select></div>
-    <div class="form-group"><label>Bar name</label><input type="text" name="barName" value="{{e.barName}}" placeholder="defaults to encounter name"></div>
-    <div class="form-group"><label>Start combat after intro</label><input type="checkbox" name="startCombat" {{checked e.startCombat}}></div>
-    <div class="form-group"><label>Show boss bar</label><input type="checkbox" name="showBar" {{checked e.showBar}}></div>
-  </fieldset>
-  <fieldset>
-    <legend>Theatre Scene</legend>
-    <div class="form-group"><label>Create a scene</label><input type="checkbox" name="theatreScene" {{checked e.theatreScene}}></div>
-    <p class="hint">Builds a scene from the artwork (or the video below) and switches everyone to it after the intro. Players can roll and open their sheets as usual. The scene is created automatically and kept up to date.</p>
-    <div class="form-group"><label>Scene background</label><file-picker type="imagevideo" name="sceneBackground" value="{{e.sceneBackground}}"></file-picker></div>
-    <p class="hint">Optional: an animated .webm or .mp4. Leave empty to use the boss artwork.</p>
-    <div class="form-group"><label>Scene weather</label><select name="sceneWeather">{{selectOptions weathers selected=e.sceneWeather}}</select></div>
-  </fieldset>
-  <fieldset>
-    <legend>Phases</legend>
-    <p class="hint">One per line: <code>HP% | Line shown | Sound path (optional)</code> e.g. <code>65 | The wings tear loose from the stone. | sounds/roar.mp3</code>. Each fires once when the boss drops to or below that percentage; the screen shakes.</p>
-    <textarea name="phases" rows="4">{{e.phases}}</textarea>
-  </fieldset>
-  <fieldset>
-    <legend>Defeat &amp; Victory</legend>
-    <div class="form-group"><label>Defeat effect</label><select name="defeat">{{selectOptions defeats selected=e.defeat}}</select></div>
-    <div class="form-group"><label>Victory title</label><input type="text" name="victoryTitle" value="{{e.victoryTitle}}" placeholder="Victory"></div>
-    <div class="form-group"><label>Epilogue</label><textarea name="victoryText" rows="3">{{e.victoryText}}</textarea></div>
-  </fieldset>
-  <footer class="form-footer"><button type="submit"><i class="fa-solid fa-save"></i> Save</button></footer>
+<form class="sce-editor" autocomplete="off" style="--accent: {{e.color}}">
+
+  <header class="sce-hero">
+    <div class="sce-hero-art" {{#if e.image}}style="background-image: url('{{e.image}}')"{{/if}}>
+      {{#unless e.image}}<i class="fa-solid fa-dragon"></i>{{/unless}}
+    </div>
+    <div class="sce-hero-fields">
+      <input class="sce-title" type="text" name="name" value="{{e.name}}" placeholder="Boss name">
+      <input class="sce-subtitle" type="text" name="subtitle" value="{{e.subtitle}}" placeholder="Subtitle, e.g. The Burning Crown">
+    </div>
+    <label class="sce-color" title="Accent color">
+      <input type="color" name="color" value="{{e.color}}"><span>Accent</span>
+    </label>
+  </header>
+
+  <nav class="sce-tabs">
+    <button type="button" data-tab="story"><i class="fa-solid fa-feather-pointed"></i> Story</button>
+    <button type="button" data-tab="sound"><i class="fa-solid fa-music"></i> Sound</button>
+    <button type="button" data-tab="flow"><i class="fa-solid fa-diagram-next"></i> After Intro</button>
+    <button type="button" data-tab="combat"><i class="fa-solid fa-swords"></i> Combat</button>
+    <button type="button" data-tab="ending"><i class="fa-solid fa-flag-checkered"></i> Ending</button>
+  </nav>
+
+  <div class="sce-body">
+
+    <!-- STORY -->
+    <section class="sce-pane" data-tab="story">
+      <div class="sce-field">
+        <label>Boss artwork</label>
+        <file-picker type="image" name="image" value="{{e.image}}"></file-picker>
+        <small>Shown large in the reveal, and used as the scene background if you create a scene.</small>
+      </div>
+      <div class="sce-field">
+        <label>Narration</label>
+        <textarea name="narration" rows="5" placeholder="One line per beat.&#10;Each line fades in on the darkened scene before the artwork appears.">{{e.narration}}</textarea>
+        <small>One line per beat, about 3.5 seconds each.</small>
+      </div>
+      <div class="sce-field">
+        <label>Atmosphere</label>
+        <div class="sce-chips">
+          {{#each atmosphereList}}
+          <label class="sce-chip"><input type="radio" name="atmosphere" value="{{value}}" {{checked checked}}><i class="fa-solid {{icon}}"></i><span>{{label}}</span></label>
+          {{/each}}
+        </div>
+      </div>
+      <div class="sce-field inline">
+        <label>Minimum intro length</label>
+        <input type="number" name="duration" min="3" max="120" value="{{e.duration}}"><span class="unit">seconds</span>
+      </div>
+    </section>
+
+    <!-- SOUND -->
+    <section class="sce-pane" data-tab="sound">
+      <div class="sce-card-group">
+        <h4><i class="fa-solid fa-play"></i> Stinger <em>plays from the start of the intro</em></h4>
+        <file-picker type="audio" name="stinger" value="{{e.stinger}}"></file-picker>
+        <div class="sce-field inline">
+          <label>Fade in</label>
+          <range-picker name="stingerFadeIn" min="0" max="10" step="0.1" value="{{e.stingerFadeIn}}"></range-picker><span class="unit">s</span>
+        </div>
+      </div>
+
+      <div class="sce-card-group">
+        <h4><i class="fa-solid fa-bolt"></i> Reveal sound <em>takes over when the artwork appears</em></h4>
+        <file-picker type="audio" name="revealSound" value="{{e.revealSound}}"></file-picker>
+        <div class="sce-field inline">
+          <label>Crossfade starts</label>
+          <range-picker name="crossStart" min="-12" max="12" step="0.1" value="{{e.crossStart}}"></range-picker><span class="unit">s</span>
+        </div>
+        <div class="sce-field inline">
+          <label>Crossfade length</label>
+          <range-picker name="crossLen" min="0.2" max="10" step="0.1" value="{{e.crossLen}}"></range-picker><span class="unit">s</span>
+        </div>
+        <small>Negative start values begin the crossfade before the artwork appears. The reveal sound plays once and does not loop.</small>
+        <div class="sce-timeline"></div>
+      </div>
+
+      <div class="sce-card-group">
+        <h4><i class="fa-solid fa-guitar"></i> Music</h4>
+        <div class="sce-field"><label>Combat music</label><file-picker type="audio" name="music" value="{{e.music}}"></file-picker></div>
+        <div class="sce-field"><label>Victory music</label><file-picker type="audio" name="victoryMusic" value="{{e.victoryMusic}}"></file-picker></div>
+      </div>
+    </section>
+
+    <!-- AFTER INTRO -->
+    <section class="sce-pane" data-tab="flow">
+      <div class="sce-field">
+        <label>When the reveal is on screen</label>
+        <div class="sce-options">
+          {{#each afterList}}
+          <label class="sce-option"><input type="radio" name="afterReveal" value="{{value}}" {{checked checked}}>
+            <i class="fa-solid {{icon}}"></i>
+            <span><strong>{{label}}</strong><small>{{desc}}</small></span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
+      <div class="sce-field inline">
+        <label>Reveal stays</label>
+        <input type="number" name="revealHold" min="0" max="120" value="{{e.revealHold}}"><span class="unit">seconds before it decides</span>
+      </div>
+
+      <div class="sce-card-group">
+        <h4><i class="fa-solid fa-image"></i> Theatre scene</h4>
+        <label class="sce-switch"><input type="checkbox" name="theatreScene" {{checked e.theatreScene}}><span></span> Create a scene and switch everyone to it after the intro</label>
+        <small>Players keep their sheets and can roll as usual. The scene is created and kept up to date automatically.</small>
+        <div class="sce-field"><label>Animated background <em>optional</em></label><file-picker type="imagevideo" name="sceneBackground" value="{{e.sceneBackground}}"></file-picker><small>A .webm or .mp4 loop. Leave empty to use the boss artwork.</small></div>
+        <div class="sce-field inline"><label>Weather</label><select name="sceneWeather">{{selectOptions weathers selected=e.sceneWeather}}</select></div>
+      </div>
+    </section>
+
+    <!-- COMBAT -->
+    <section class="sce-pane" data-tab="combat">
+      <div class="sce-field"><label>Boss actor</label>
+        <select name="bossActorId">{{selectOptions actors selected=e.bossActorId blank="None"}}</select>
+        <small>The health bar and phases follow this actor's hit points.</small>
+      </div>
+      <div class="sce-field"><label>Battle map <em>optional</em></label>
+        <select name="sceneId">{{selectOptions scenes selected=e.sceneId blank="Stay on the current scene"}}</select>
+      </div>
+      <div class="sce-field"><label>Bar title</label>
+        <input type="text" name="barName" value="{{e.barName}}" placeholder="Defaults to the encounter name">
+      </div>
+      <div class="sce-toggles">
+        <label class="sce-switch"><input type="checkbox" name="startCombat" {{checked e.startCombat}}><span></span> Start combat after the intro</label>
+        <label class="sce-switch"><input type="checkbox" name="showBar" {{checked e.showBar}}><span></span> Show the boss health bar</label>
+      </div>
+
+      <div class="sce-card-group">
+        <h4><i class="fa-solid fa-heart-crack"></i> Phases <em>fire once when the boss drops below a threshold</em></h4>
+        <div class="sce-phases"></div>
+        <button type="button" class="sce-add-phase"><i class="fa-solid fa-plus"></i> Add phase</button>
+        <input type="hidden" name="phases" value="{{e.phases}}">
+      </div>
+    </section>
+
+    <!-- ENDING -->
+    <section class="sce-pane" data-tab="ending">
+      <div class="sce-field">
+        <label>Defeat effect</label>
+        <div class="sce-chips">
+          {{#each defeatList}}
+          <label class="sce-chip"><input type="radio" name="defeat" value="{{value}}" {{checked checked}}><i class="fa-solid {{icon}}"></i><span>{{label}}</span></label>
+          {{/each}}
+        </div>
+      </div>
+      <div class="sce-field"><label>Victory title</label><input type="text" name="victoryTitle" value="{{e.victoryTitle}}" placeholder="Victory"></div>
+      <div class="sce-field"><label>Epilogue</label><textarea name="victoryText" rows="4" placeholder="A few lines shown on the victory screen.">{{e.victoryText}}</textarea></div>
+    </section>
+  </div>
+
+  <footer class="sce-footer">
+    <button type="button" class="sce-btn ghost" data-act="preview"><i class="fa-solid fa-film"></i> Preview (only you)</button>
+    <span class="spacer"></span>
+    <button type="button" class="sce-btn ghost" data-act="cancel">Cancel</button>
+    <button type="submit" class="sce-btn primary"><i class="fa-solid fa-floppy-disk"></i> Save</button>
+  </footer>
 </form>

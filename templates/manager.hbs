@@ -1,26 +1,51 @@
-<section class="ee-manager">
-  <div class="ee-toolbar">
-    <button type="button" data-action="create"><i class="fa-solid fa-plus"></i> New Encounter</button>
-    <button type="button" data-action="stop"><i class="fa-solid fa-stop"></i> Stop Active</button>
+<section class="sce-manager">
+
+  <header class="sce-mhead">
+    <div>
+      <h2>Encounters</h2>
+      <p>Pick a boss and press Start. <kbd>Alt</kbd> + <kbd>E</kbd> opens this window.</p>
+    </div>
+    <button type="button" class="sce-btn primary" data-action="create"><i class="fa-solid fa-plus"></i> New encounter</button>
+  </header>
+
+  {{#if running}}
+  <div class="sce-running">
+    <span class="dot"></span>
+    <span>Running: <strong>{{running}}</strong></span>
+    <button type="button" class="sce-btn danger" data-action="stop"><i class="fa-solid fa-stop"></i> Stop</button>
   </div>
+  {{/if}}
+
   {{#if encounters.length}}
-  <ul class="ee-list">
+  <div class="sce-grid">
     {{#each encounters}}
-    <li data-id="{{id}}" class="{{#if active}}active{{/if}}">
-      {{#if image}}<img src="{{image}}" alt="">{{else}}<span class="ee-noimg"><i class="fa-solid fa-dragon"></i></span>{{/if}}
-      <div class="ee-info"><strong>{{name}}</strong><small>{{subtitle}}</small></div>
-      <div class="ee-btns">
-        <button type="button" data-action="intro" data-id="{{id}}" title="Intro only (preview for all)"><i class="fa-solid fa-film"></i></button>
-        <button type="button" data-action="start" data-id="{{id}}" title="Start encounter (intro, then combat and boss bar)"><i class="fa-solid fa-play"></i></button>
-        <button type="button" data-action="edit" data-id="{{id}}" title="Edit"><i class="fa-solid fa-pen"></i></button>
-        <button type="button" data-action="duplicate" data-id="{{id}}" title="Duplicate"><i class="fa-solid fa-copy"></i></button>
-        <button type="button" data-action="delete" data-id="{{id}}" title="Delete"><i class="fa-solid fa-trash"></i></button>
+    <article class="sce-card {{#if active}}is-active{{/if}}" style="--accent: {{color}}">
+      <div class="sce-card-art" {{#if image}}style="background-image: url('{{image}}')"{{/if}}>
+        {{#unless image}}<i class="fa-solid fa-dragon"></i>{{/unless}}
+        <button type="button" class="sce-play" data-action="start" data-id="{{id}}" title="Start the full encounter"><i class="fa-solid fa-play"></i></button>
       </div>
-    </li>
+      <div class="sce-card-body">
+        <h3>{{name}}</h3>
+        <p>{{#if subtitle}}{{subtitle}}{{else}}&nbsp;{{/if}}</p>
+        <ul class="sce-tags">
+          {{#each chips}}<li><i class="fa-solid {{icon}}"></i> {{label}}</li>{{/each}}
+        </ul>
+      </div>
+      <div class="sce-card-actions">
+        <button type="button" data-action="intro" data-id="{{id}}" title="Preview the intro only"><i class="fa-solid fa-film"></i> Intro</button>
+        <button type="button" data-action="edit" data-id="{{id}}" title="Edit"><i class="fa-solid fa-pen"></i> Edit</button>
+        <button type="button" data-action="duplicate" data-id="{{id}}" title="Duplicate"><i class="fa-solid fa-copy"></i></button>
+        <button type="button" data-action="delete" data-id="{{id}}" title="Delete" class="danger"><i class="fa-solid fa-trash"></i></button>
+      </div>
+    </article>
     {{/each}}
-  </ul>
+  </div>
   {{else}}
-  <p class="ee-empty">No encounters yet. Create one.</p>
+  <div class="sce-empty">
+    <i class="fa-solid fa-dragon"></i>
+    <h3>No encounters yet</h3>
+    <p>Give your next boss an entrance.</p>
+    <button type="button" class="sce-btn primary" data-action="create"><i class="fa-solid fa-plus"></i> Create your first encounter</button>
+  </div>
   {{/if}}
 </section>
-
